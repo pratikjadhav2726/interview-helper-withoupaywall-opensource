@@ -61,6 +61,13 @@ export const ConversationSection: React.FC = () => {
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Use ref to track recording state for event listener
+  const isRecordingRef = useRef(false);
+  
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
   useEffect(() => {
     loadConversation();
     
@@ -84,7 +91,8 @@ export const ConversationSection: React.FC = () => {
 
     // Listen for keyboard shortcut to toggle recording
     const handleToggleRecording = async () => {
-      const currentIsRecording = audioRecorderRef.current?.getIsRecording() || false;
+      // Check actual recording state using ref to get latest value
+      const currentIsRecording = isRecordingRef.current || (audioRecorderRef.current?.getIsRecording() || false);
       if (currentIsRecording) {
         await handleStopRecording();
       } else {
@@ -124,12 +132,19 @@ export const ConversationSection: React.FC = () => {
 
   const handleStartRecording = async () => {
     try {
+      // Check if already recording
+      if (audioRecorderRef.current?.getIsRecording()) {
+        console.log('Already recording');
+        return;
+      }
+      
       if (!audioRecorderRef.current) {
         audioRecorderRef.current = new AudioRecorder();
       }
       
       await audioRecorderRef.current.startRecording();
       setIsRecording(true);
+      isRecordingRef.current = true;
       setRecordingDuration(0);
       
       // Start duration counter
@@ -143,9 +158,15 @@ export const ConversationSection: React.FC = () => {
   };
 
   const handleStopRecording = async () => {
-    if (!audioRecorderRef.current || !isRecording) return;
+    // Check recorder state directly instead of React state to avoid stale closures
+    if (!audioRecorderRef.current || !audioRecorderRef.current.getIsRecording()) {
+      console.log('Not recording, cannot stop');
+      return;
+    }
     
     setIsRecording(false);
+    isRecordingRef.current = false;
+    
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
