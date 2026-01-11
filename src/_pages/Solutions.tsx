@@ -11,6 +11,7 @@ import SolutionCommands from "../components/Solutions/SolutionCommands"
 import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
+import { ConversationSection } from "../components/Conversation/ConversationSection"
 
 export const ContentSection = ({
   title,
@@ -499,6 +500,11 @@ const Solutions: React.FC<SolutionsProps> = ({
             currentLanguage={currentLanguage}
             setLanguage={setLanguage}
           />
+
+          {/* Conversation Section */}
+          <div className="bg-black/60 rounded-md p-4">
+            <ConversationSection />
+          </div>
 
           {/* Main Content - Modified width constraints */}
           <div className="w-full text-sm text-black bg-black/60 rounded-md">
