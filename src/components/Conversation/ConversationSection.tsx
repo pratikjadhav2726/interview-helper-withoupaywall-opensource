@@ -2,8 +2,10 @@
  * ConversationSection - UI component for conversation recording and AI suggestions
  * Follows Single Responsibility Principle - only handles conversation UI
  * Uses existing ContentSection pattern for consistency
+ * Integrates with screenshot system for cohesive experience
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AudioRecorder } from '../../utils/audioRecorder';
 
 interface ConversationMessage {
@@ -48,6 +50,7 @@ const ContentSection = ({
 );
 
 export const ConversationSection: React.FC = () => {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [currentSpeaker, setCurrentSpeaker] = useState<'interviewer' | 'interviewee'>('interviewee');
@@ -167,10 +170,8 @@ export const ConversationSection: React.FC = () => {
         // If interviewer question, get AI suggestions
         if (currentSpeaker === 'interviewer') {
           await fetchAISuggestions(text);
-        } else {
-          // Clear suggestions when interviewee responds
-          setAiSuggestions(null);
         }
+        // Don't clear suggestions when interviewee responds - user needs to see them!
       }
     } catch (error: any) {
       console.error('Failed to process recording:', error);
@@ -183,7 +184,15 @@ export const ConversationSection: React.FC = () => {
 
   const fetchAISuggestions = async (question: string) => {
     try {
-      const result = await window.electronAPI.getAnswerSuggestions(question);
+      // Get problem statement from query cache if available (from screenshots)
+      const problemStatement = queryClient.getQueryData(['problem_statement']) as any;
+      let screenshotContext: string | undefined;
+      
+      if (problemStatement?.problem_statement) {
+        screenshotContext = `Problem Statement: ${problemStatement.problem_statement}\nConstraints: ${problemStatement.constraints || 'N/A'}\nExample Input: ${problemStatement.example_input || 'N/A'}\nExample Output: ${problemStatement.example_output || 'N/A'}`;
+      }
+      
+      const result = await window.electronAPI.getAnswerSuggestions(question, screenshotContext);
       if (result.success && result.suggestions) {
         setAiSuggestions(result.suggestions);
       }
@@ -198,7 +207,7 @@ export const ConversationSection: React.FC = () => {
       const result = await window.electronAPI.toggleSpeaker();
       if (result.success) {
         setCurrentSpeaker(result.speaker);
-        setAiSuggestions(null); // Clear suggestions when switching speaker
+        // Don't clear suggestions - user needs to see them when preparing their answer!
       }
     } catch (error) {
       console.error('Failed to toggle speaker:', error);
@@ -219,9 +228,9 @@ export const ConversationSection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-3">
-      {/* Recording Controls */}
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-col h-full">
+      {/* Recording Controls - Always visible at top */}
+      <div className="flex items-center gap-3 flex-wrap flex-shrink-0 mb-3">
         <button
           onClick={isRecording ? handleStopRecording : handleStartRecording}
           disabled={isProcessing}
@@ -247,63 +256,72 @@ export const ConversationSection: React.FC = () => {
         )}
       </div>
 
-      {/* Messages */}
-      {messages.length > 0 && (
-        <ContentSection
-          title="Conversation"
-          content={
-            <div className="space-y-3">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex flex-col ${
-                    message.speaker === 'interviewer' ? 'items-start' : 'items-end'
-                  }`}
-                >
+      {/* Scrollable Conversation Area - Takes remaining space above AI suggestions */}
+      <div 
+        className="overflow-y-auto flex-1 min-h-0 mb-3 pr-2"
+        style={{ 
+          maxHeight: aiSuggestions ? 'calc(100% - 180px)' : '100%',
+          scrollBehavior: 'smooth'
+        }}
+      >
+        {messages.length > 0 && (
+          <ContentSection
+            title="Conversation"
+            content={
+              <div className="space-y-3">
+                {messages.map((message) => (
                   <div
-                    className={`max-w-[80%] rounded-lg p-2.5 ${
-                      message.speaker === 'interviewer'
-                        ? 'bg-blue-600/20 border border-blue-500/30'
-                        : 'bg-green-600/20 border border-green-500/30'
+                    key={message.id}
+                    className={`flex flex-col ${
+                      message.speaker === 'interviewer' ? 'items-start' : 'items-end'
                     }`}
                   >
-                    <div className="text-xs text-white/60 mb-1">
-                      {message.speaker === 'interviewer' ? '👤 Interviewer' : '🎤 You'}
+                    <div
+                      className={`max-w-[80%] rounded-lg p-2.5 ${
+                        message.speaker === 'interviewer'
+                          ? 'bg-blue-600/20 border border-blue-500/30'
+                          : 'bg-green-600/20 border border-green-500/30'
+                      }`}
+                    >
+                      <div className="text-xs text-white/60 mb-1">
+                        {message.speaker === 'interviewer' ? '👤 Interviewer' : '🎤 You'}
+                      </div>
+                      <div className="text-white text-[13px]">{message.text}</div>
+                      <div className="text-xs text-white/40 mt-1">
+                        {formatTime(message.timestamp)}
+                      </div>
                     </div>
-                    <div className="text-white text-[13px]">{message.text}</div>
-                    <div className="text-xs text-white/40 mt-1">
-                      {formatTime(message.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          }
-          isLoading={false}
-        />
-      )}
-
-      {/* AI Suggestions - styled like "My Thoughts" from Solutions */}
-      {aiSuggestions && (
-        <ContentSection
-          title="🤖 AI Answer Suggestions"
-          content={
-            <div className="space-y-3">
-              <div className="space-y-1">
-                {aiSuggestions.suggestions.map((suggestion, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <div className="w-1 h-1 rounded-full bg-purple-400/80 mt-2 shrink-0" />
-                    <div className="text-[13px]">{suggestion}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          }
-          isLoading={false}
-        />
+            }
+            isLoading={false}
+          />
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* AI Suggestions - Fixed at bottom, always visible, never scrolls */}
+      {aiSuggestions && (
+        <div className="flex-shrink-0 border-t border-white/10 pt-3 bg-black/60 -mx-4 -mb-4 px-4 pb-4">
+          <ContentSection
+            title="🤖 AI Answer Suggestions"
+            content={
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  {aiSuggestions.suggestions.map((suggestion, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <div className="w-1 h-1 rounded-full bg-purple-400/80 mt-2 shrink-0" />
+                      <div className="text-[13px]">{suggestion}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }
+            isLoading={false}
+          />
+        </div>
       )}
-      
-      <div ref={messagesEndRef} />
     </div>
   );
 };

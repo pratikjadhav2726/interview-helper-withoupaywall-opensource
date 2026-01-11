@@ -467,6 +467,12 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
                 <div className="text-white/70">Take Screenshot</div>
                 <div className="text-white/90 font-mono">Ctrl+H / Cmd+H</div>
                 
+                <div className="text-white/70">Start/Stop Recording</div>
+                <div className="text-white/90 font-mono">Ctrl+M / Cmd+M</div>
+                
+                <div className="text-white/70">Toggle Speaker Mode</div>
+                <div className="text-white/90 font-mono">Ctrl+Shift+M / Cmd+Shift+M</div>
+                
                 <div className="text-white/70">Process Screenshots</div>
                 <div className="text-white/90 font-mono">Ctrl+Enter / Cmd+Enter</div>
                 

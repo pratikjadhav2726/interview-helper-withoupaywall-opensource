@@ -66,6 +66,22 @@ export class ProcessingHelper {
       this.initializeAIClient();
     });
   }
+
+  /**
+   * Get conversation context for integration with screenshot processing
+   */
+  private getConversationContext(): string | null {
+    try {
+      const conversationManager = this.deps.getConversationManager?.();
+      if (conversationManager) {
+        const history = conversationManager.getConversationHistory();
+        return history && history.trim().length > 0 ? history : null;
+      }
+    } catch (error) {
+      console.error('Error getting conversation context:', error);
+    }
+    return null;
+  }
   
   /**
    * Initialize or reinitialize the AI client with current config
@@ -473,18 +489,29 @@ export class ProcessingHelper {
           }
         }
 
+        // Get conversation context if available
+        const conversationContext = this.getConversationContext();
+        
         // Use OpenAI for processing
+        const systemPrompt = conversationContext
+          ? `You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Consider the conversation context provided. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text.`
+          : "You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text.";
+        
+        const userPrompt = conversationContext
+          ? `Extract the coding problem details from these screenshots. Consider the following conversation context:\n\n${conversationContext}\n\nReturn in JSON format. Preferred coding language we gonna use for this problem is ${language}.`
+          : `Extract the coding problem details from these screenshots. Return in JSON format. Preferred coding language we gonna use for this problem is ${language}.`;
+        
         const messages = [
           {
             role: "system" as const, 
-            content: "You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text."
+            content: systemPrompt
           },
           {
             role: "user" as const,
             content: [
               {
                 type: "text" as const, 
-                text: `Extract the coding problem details from these screenshots. Return in JSON format. Preferred coding language we gonna use for this problem is ${language}.`
+                text: userPrompt
               },
               ...imageDataList.map(data => ({
                 type: "image_url" as const,
@@ -525,13 +552,20 @@ export class ProcessingHelper {
         }
 
         try {
+          // Get conversation context if available
+          const conversationContext = this.getConversationContext();
+          
+          const geminiPrompt = conversationContext
+            ? `You are a coding challenge interpreter. Analyze the screenshots of the coding problem and extract all relevant information. Consider the following conversation context:\n\n${conversationContext}\n\nReturn the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text. Preferred coding language we gonna use for this problem is ${language}.`
+            : `You are a coding challenge interpreter. Analyze the screenshots of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text. Preferred coding language we gonna use for this problem is ${language}.`;
+          
           // Create Gemini message structure
           const geminiMessages: GeminiMessage[] = [
             {
               role: "user",
               parts: [
                 {
-                  text: `You are a coding challenge interpreter. Analyze the screenshots of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text. Preferred coding language we gonna use for this problem is ${language}.`
+                  text: geminiPrompt
                 },
                 ...imageDataList.map(data => ({
                   inlineData: {
@@ -583,13 +617,20 @@ export class ProcessingHelper {
         }
 
         try {
+          // Get conversation context if available
+          const conversationContext = this.getConversationContext();
+          
+          const anthropicPrompt = conversationContext
+            ? `Extract the coding problem details from these screenshots. Consider the following conversation context:\n\n${conversationContext}\n\nReturn in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`
+            : `Extract the coding problem details from these screenshots. Return in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`;
+          
           const messages = [
             {
               role: "user" as const,
               content: [
                 {
                   type: "text" as const,
-                  text: `Extract the coding problem details from these screenshots. Return in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`
+                  text: anthropicPrompt
                 },
                 ...imageDataList.map(data => ({
                   type: "image" as const,

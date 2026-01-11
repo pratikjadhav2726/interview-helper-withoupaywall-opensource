@@ -502,7 +502,7 @@ const Solutions: React.FC<SolutionsProps> = ({
           />
 
           {/* Conversation Section */}
-          <div className="bg-black/60 rounded-md p-4">
+          <div className="bg-black/60 rounded-md p-4" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
             <ConversationSection />
           </div>
 

@@ -73,6 +73,7 @@ export interface IProcessingHelperDeps {
   setHasDebugged: (value: boolean) => void
   getHasDebugged: () => boolean
   PROCESSING_EVENTS: typeof state.PROCESSING_EVENTS
+  getConversationManager?: () => import('./ConversationManager').ConversationManager | null
 }
 
 export interface IShortcutsHelperDeps {
@@ -133,7 +134,8 @@ async function initializeHelpers() {
     deleteScreenshot,
     setHasDebugged,
     getHasDebugged,
-    PROCESSING_EVENTS: state.PROCESSING_EVENTS
+    PROCESSING_EVENTS: state.PROCESSING_EVENTS,
+    getConversationManager: () => state.conversationManager
   } as IProcessingHelperDeps)
   
   // Initialize conversation and transcription helpers

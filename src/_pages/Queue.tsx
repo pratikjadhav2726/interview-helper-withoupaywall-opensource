@@ -142,7 +142,7 @@ const Queue: React.FC<QueueProps> = ({
       <div className="px-4 py-3">
         <div className="space-y-3 w-full">
           {/* Conversation Section - Works independently of screenshots */}
-          <div className="bg-black/60 rounded-md p-4">
+          <div className="bg-black/60 rounded-md p-4" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
             <ConversationSection />
           </div>
 
